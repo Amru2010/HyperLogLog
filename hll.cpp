@@ -63,24 +63,52 @@ double hllCount(
     string s;
     while (getline(file, s)) {
         uint64_t h = splitmix64(hash<string>{}(s));
+
+        // First p bits = bucket
         int bucket = h >> (64 - p);
+
+        // Remaining bits
         uint64_t w = h << p;
+
+        // rho(w): position of first 1-bit
         int rho = __builtin_clzll(w) + 1;
+
         M[bucket] = max(M[bucket], (uint8_t)rho);
     }
 
+    // Raw estimate
     double sum = 0.0;
-    for (int i = 0; i < m; i++)
+    int V = 0;
+    for (int i = 0; i < m; i++) {
         sum += pow(2.0, -M[i]);
+        if (M[i] == 0) V++;
+    }
 
-    double alpha = 0.7213 / (1.0 + 1.079 / m);
-    double estimate = alpha * m * m / sum;
+    double alpha;
+    if (m == 16) alpha = 0.673;
+    else if (m == 32) alpha = 0.697;
+    else if (m == 64) alpha = 0.709;
+    else alpha = 0.7213 / (1.0 + 1.079 / m);
+
+    double E = alpha * m * m / sum;
+    double E_star = E;
+
+    // ---- Small range correction ----
+    if (E <= 2.5 * m) {
+        if (V != 0)
+            E_star = m * log((double)m / V);
+    }
+    // ---- Large range correction ----
+    else if (E > (1.0 / 30.0) * pow(2.0, 32)) {
+        E_star = -pow(2.0, 32) * log(1.0 - E / pow(2.0, 32));
+    }
+    // ---- Intermediate range: no correction ----
 
     auto end = high_resolution_clock::now();
     time_ms = duration_cast<milliseconds>(end - start).count();
     mem_kb = getPrivateMemoryKB();
 
-    return estimate;
+    return E_star;
 }
 
 /* ------------------ MAIN ------------------ */
@@ -92,7 +120,7 @@ int main() {
 
     size_t exact = exactCount(filename, time_exact, mem_exact);
 
-    int p = 15;
+    int p = 16;
     double estimate = hllCount(filename, p, time_hll, mem_hll);
 
     double accuracy = abs(estimate - exact) / exact * 100.0;

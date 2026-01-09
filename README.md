@@ -22,12 +22,59 @@ HyperLogLog is a probabilistic data structure used to estimate the cardinality (
 
 ## Algorithm Details
 
-### HyperLogLog
-- **Hash Function**: Uses `splitmix64` for uniform distribution
-- **Precision Parameter**: `p = 15` (32,768 buckets)
-- **Estimator**: Standard HyperLogLog estimator with alpha correction
-- **Memory**: ~32 KB for p=15 plus some additional space
-- **Accuracy**: Typically <1% error on large datasets
+### Pseudocode & Logic
+The implementation follows the canonical HyperLogLog algorithm as described in the original paper, using the following logic (adapted for m = 2^16).
+
+**Definitions:**
+- Let `h: D -> {0, 1}^32` be a hash function from D to binary 32-bit words.
+- Let `ρ(s)` be the position of the leftmost 1-bit of `s`.
+- Define constants:
+  - `α_16 = 0.673`
+  - `α_32 = 0.697`
+  - `α_64 = 0.709`
+  - `α_m = 0.7213/(1 + 1.079/m)` for `m >= 128`
+
+**Algorithm:**
+```text
+Program HYPERLOGLOG (input M: multiset of items from domain D)
+
+1. Assume m = 2^b with b in [4..16].
+2. Initialize registers M[1], ..., M[m] to 0.
+3. For v in M:
+     x = h(v)
+     j = 1 + <x_1...x_b>_2   (binary address from first b bits)
+     w = x_{b+1}x_{b+2}...   (remaining bits)
+     M[j] = max(M[j], ρ(w))
+
+4. Raw Estimate E:
+     E = α_m * m^2 * (sum_{j=1}^m 2^{-M[j]})^-1
+
+5. Range Corrections:
+     # Small Range
+     If E <= (5/2) * m:
+         Let V be the number of registers equal to 0.
+         If V != 0:
+             E* = m * log(m/V)
+         Else:
+             E* = E
+
+     # Intermediate Range
+     If (5/2) * m < E <= (1/30) * 2^32:
+         E* = E
+
+     # Large Range
+     If E > (1/30) * 2^32:
+         E* = -2^32 * log(1 - E/2^32)
+
+6. Return estimate E*
+```
+
+_Note: The actual C++ implementation uses `splitmix64` (a 64-bit hash) and `__builtin_clzll` for performance on 64-bit systems, but follows the logic above including the range corrections derived for 32-bit HLL._
+
+### Parameters
+- **Precision**: `p = 16` (65,536 buckets)
+- **Hash Function**: `splitmix64` (64-bit)
+- **Memory**: ~64 KB for registers
 
 ### Exact Counting
 - **Data Structure**: `std::set<string>`
@@ -64,26 +111,26 @@ Execute the HyperLogLog benchmark:
 ./hll.exe
 ```
 
-### Sample Output (For p = 15)
+### Sample Output (For p = 16)
 ```
 Exact (std::set)
   Count   : 999963
-  Time    : 21260 ms
-  Memory  : 83284 KB
+  Time    : 16798 ms
+  Memory  : 83256 KB
 
 HyperLogLog
-  Estimate: 997045
-  Accuracy: 0.291721 %
-  Time    : 906 ms
-  Memory  : 2276 KB
+  Estimate: 1000217
+  Accuracy: 0.0254655 %
+  Time    : 658 ms
+  Memory  : 2268 KB
 ```
 
 ## Configuration
 
 ### Adjusting Precision
-Modify the precision parameter `p` in `hll.cpp` (line 95):
+Modify the precision parameter `p` in `hll.cpp`:
 ```cpp
-int p = 15;  // Valid range: 4-16
+int p = 16;  // Valid range: 4-16
 ```
 
 | p Value | Buckets (m) | Memory | Standard Error |
@@ -119,7 +166,7 @@ Uses `splitmix64`, a fast and high-quality 64-bit hash mixer:
 - Combines with `std::hash<string>` for string hashing
 
 ### Leading Zero Counting
-Utilizes GCC/Clang built-in `__builtin_clzll()` for efficient leading zero detection.
+Utilizes GCC/Clang built-in `__builtin_clzll()` (64-bit) for efficient leading zero detection.
 
 ### Memory Profiling
 Windows-specific implementation using:
@@ -129,9 +176,7 @@ Windows-specific implementation using:
 ## Limitations
 
 - **Platform**: Memory tracking is Windows-specific (requires modification for Linux/macOS)
-- **Hash Collisions**: Uses standard library hash which may not be cryptographically secure
 - **Small Cardinalities**: HyperLogLog performs poorly for very small datasets (<100 unique elements)
-- **No Bias Correction**: Doesn't implement small/large range corrections for extreme cardinalities
 
 ## Future Enhancements
 
