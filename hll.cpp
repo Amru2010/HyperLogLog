@@ -126,7 +126,7 @@ int main() {
     size_t mem_before_estimate = getPrivateMemoryKB();
     double estimate = hllCount(filename, p, time_hll, mem_hll);
 
-    double accuracy = abs(estimate - exact) / exact * 100.0;
+    double error = abs(estimate - exact) / exact * 100.0;
 
     cout << "Exact (std::set)\n";
     cout << "  Count   : " << exact << "\n";
@@ -135,7 +135,7 @@ int main() {
 
     cout << "HyperLogLog\n";
     cout << "  Estimate: " << (long long)estimate << "\n";
-    cout << "  Accuracy: " << accuracy << " %\n";
+    cout << "  Error: " << error << " %\n";
     cout << "  Time    : " << time_hll << " ms\n";
     cout << "  Memory  : " << (mem_hll - mem_before_estimate) << " KB\n";
 }

@@ -115,13 +115,13 @@ Execute the HyperLogLog benchmark:
 ```
 Exact (std::set)
   Count   : 999963
-  Time    : 18496 ms
+  Time    : 20085 ms
   Memory  : 81580 KB
 
 HyperLogLog
   Estimate: 1000217
-  Accuracy: 0.0254655 %
-  Time    : 882 ms
+  Error: 0.0254655 %
+  Time    : 693 ms
   Memory  : 76 KB
 ```
 
