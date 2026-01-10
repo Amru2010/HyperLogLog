@@ -99,9 +99,9 @@ double hllCount(
             E_star = m * log((double)m / V);
     }
     // ---- Large range correction ----
-    else if (E > (1.0 / 30.0) * pow(2.0, 32)) {
-        E_star = -pow(2.0, 32) * log(1.0 - E / pow(2.0, 32));
-    }
+    // else if (E > (1.0 / 30.0) * pow(2.0, 32)) {
+    //     E_star = -pow(2.0, 32) * log(1.0 - E / pow(2.0, 32));
+    // }
     // ---- Intermediate range: no correction ----
 
     auto end = high_resolution_clock::now();
@@ -118,9 +118,12 @@ int main() {
     long long time_exact, time_hll;
     size_t mem_exact, mem_hll;
 
+    size_t mem_before_exact = getPrivateMemoryKB();
     size_t exact = exactCount(filename, time_exact, mem_exact);
 
     int p = 16;
+
+    size_t mem_before_estimate = getPrivateMemoryKB();
     double estimate = hllCount(filename, p, time_hll, mem_hll);
 
     double accuracy = abs(estimate - exact) / exact * 100.0;
@@ -128,11 +131,11 @@ int main() {
     cout << "Exact (std::set)\n";
     cout << "  Count   : " << exact << "\n";
     cout << "  Time    : " << time_exact << " ms\n";
-    cout << "  Memory  : " << mem_exact << " KB\n\n";
+    cout << "  Memory  : " << (mem_exact - mem_before_exact) << " KB\n\n";
 
     cout << "HyperLogLog\n";
     cout << "  Estimate: " << (long long)estimate << "\n";
     cout << "  Accuracy: " << accuracy << " %\n";
     cout << "  Time    : " << time_hll << " ms\n";
-    cout << "  Memory  : " << mem_hll << " KB\n";
+    cout << "  Memory  : " << (mem_hll - mem_before_estimate) << " KB\n";
 }

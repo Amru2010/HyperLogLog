@@ -69,7 +69,7 @@ Program HYPERLOGLOG (input M: multiset of items from domain D)
 6. Return estimate E*
 ```
 
-_Note: The actual C++ implementation uses `splitmix64` (a 64-bit hash) and `__builtin_clzll` for performance on 64-bit systems, but follows the logic above including the range corrections derived for 32-bit HLL._
+_Note: The actual C++ implementation uses `splitmix64` (a 64-bit hash) and `__builtin_clzll` for performance on 64-bit systems, but follows the logic above including the range corrections derived for 32-bit HLL. Since the large range correction is due to hash collision which is very rare for 64-bit hash thus we can ignore the hash correction for large range in this case._
 
 ### Parameters
 - **Precision**: `p = 16` (65,536 buckets)
@@ -115,14 +115,14 @@ Execute the HyperLogLog benchmark:
 ```
 Exact (std::set)
   Count   : 999963
-  Time    : 16798 ms
-  Memory  : 83256 KB
+  Time    : 18496 ms
+  Memory  : 81580 KB
 
 HyperLogLog
   Estimate: 1000217
   Accuracy: 0.0254655 %
-  Time    : 658 ms
-  Memory  : 2268 KB
+  Time    : 882 ms
+  Memory  : 76 KB
 ```
 
 ## Configuration
